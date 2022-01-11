@@ -32,24 +32,20 @@ if(!all(sapply(c('SourceClassificationCode', 'summarySCCPM25'), exists))){
   list2env(loadfun(url, cache_name = 'ExplDataAssgn2', force = F), envir = globalenv())
 }
 
-#### Plot 4. ####
-str(SourceClassificationCode)
-table(SourceClassificationCode$Option.Group)
-coalSources = subset(SourceClassificationCode, subset = SCC.Level.Four %like% 'coal', select = c('SCC', 'SCC.Level.Four'))
-emissionsWithOrigin = merge(x = summarySCCPM25, y = coalSources, by = "SCC", all = F)
+#### Plot 5. ####
+table(SourceClassificationCode$EI.Sector)
+carsSources = subset(SourceClassificationCode, subset = EI.Sector %like% 'Vehicles')
+emissionsWithOrigin = merge(x = subset(summarySCCPM25, fips == "24510"), y = carsSources, by = "SCC", all = F)
 
 with(data = emissionsWithOrigin, {
-  png(filename = "C:/Users/Andrea/Desktop/Plot4.png")
+  png(filename = "C:/Users/Andrea/Desktop/Plot5.png")
   total_emissions = tapply(X = Emissions, INDEX = year, sum, na.rm = T)
   years = names(total_emissions)
-  total_k_emissions = total_emissions/1000
-  yrange = range(0, total_k_emissions)
-  plot(x = years, y = total_k_emissions,
-    pch = 18, cex = 1.5, col = 'magenta',
+  yrange = range(0, total_emissions)
+  plot(x = years, y = total_emissions,
+    pch = 23, col = 'orange',
     ylim = yrange,
-    xlab = "Year", ylab = "PM2.5 emissions", main = "Total US PM2.5 coal-related emissions - KTons."
+    xlab = "Year", ylab = "PM2.5 emissions", main = "Total PM2.5 vehicle-related emissions for Baltimore city."
   )
-  abline(h = max(total_k_emissions), col = 'red')
-  abline(h = min(total_k_emissions), col = 'green')
   dev.off()
 })

@@ -6,47 +6,44 @@
 
 library(RMugugno)
 
-link = "https://d396qusza40orc.cloudfront.net/exdata%2Fdata%2Fhousehold_power_consumption.zip"
-
-handle_remote_file = function(x, setDT = TRUE){
-  destdir = tempdir()
-  dfile = tempfile(tmpdir = destdir, fileext = ".zip")
-  download.file(x, destfile = dfile)
-  unzip(dfile, exdir = destdir)
-  file = list.files(destdir, full.names = T, pattern = ".txt")
-  res = read.csv2(file, na.strings = "?")
-  if(setDT){
-    setDT(res)
+loadfun = function(url, cache_name, force, folder = conf$default_temp_folder){
+  downloadAssgn = function(url){
+    tempdir = tempdir()
+    tempfile = tempfile(tmpdir = tempdir, fileext = '.zip')
+    download.file(url, destfile = tempfile, method = 'curl')
+    unzip(tempfile, exdir = tempdir)
+    unlink(tempfile)
+    files = list.files(tempdir, pattern = '.rds', full.names = F)
+    files = stats::setNames(files, gsub(pattern = '(_|.rds$)', replacement = '', files))
+    loginfo("Loading files %s ...", paste(files, sep = " , "))
+    resl = lapply(files, function(x, dir = tempdir){
+      loginfo("Loading file %s ...", x)
+      return(readRDS(file.path(dir, x)))
+    })
+    return(resl)
   }
-  return(res)
+  loader = cache_function(downloadAssgn, cache_name = cache_name, force = force, folder = folder)
+  return(loader(url))
 }
 
-# f = cache_function(handle_remote_file, 'second_assignment', force = T, folder = conf$default_temp_folder)
-f = cache_function(handle_remote_file, 'second_assignment', force = F, folder = conf$default_temp_folder)
-res = f(link)
+#### Start - cache data for easy access. ####
+url = 'https://d396qusza40orc.cloudfront.net/exdata%2Fdata%2FNEI_data.zip'
+if(!all(sapply(c('SourceClassificationCode', 'summarySCCPM25'), exists))){
+  list2env(loadfun(url, cache_name = 'ExplDataAssgn2', force = F), envir = globalenv())
+}
 
-# Convert.
-res[, `:=` (
-  Date = as.Date(Date, format = "%d/%m/%Y"),
-  Time = strptime(paste(as.Date(Date, format = "%d/%m/%Y"), Time, sep = " "), format = "%Y-%m-%d %H:%M:%S")
-)]
-
-# Subset.
-res = res[Date >= as.Date("2007-02-01") & Date <= as.Date("2007-02-02"), list(
-  Date,
-  Time,
-  Global_active_power = as.numeric(Global_active_power),
-  Global_reactive_power = as.numeric(Global_reactive_power),
-  Voltage = as.numeric(Voltage),
-  Global_intensity = as.numeric(Global_intensity),
-  Sub_metering_1 = as.numeric(Sub_metering_1),
-  Sub_metering_2 = as.numeric(Sub_metering_2),
-  Sub_metering_3 = as.numeric(Sub_metering_3)
-)]
-
-# Plot 2
-with(data = res, {
+#### Plot 2. ####
+with(data = summarySCCPM25[summarySCCPM25$fips == "24510", ], {
+  # Total PM2.5 emissions for Baltimore city.
+  options(scipen = 5L)
   png(filename = "C:/Users/Andrea/Desktop/Plot2.png")
-  plot(Time, Global_active_power, type = "l", ylab = "Global Active Power (kilowatts)")
+  total_emissions = tapply(X = Emissions, INDEX = year, FUN = sum, na.rm = T)
+  years = names(total_emissions)
+  yLim = range(0, total_emissions + 100)
+  plot(
+    x = years, y = total_emissions,
+    pch = 22, cex = 2, col = 'red',
+    xlab = "Year", ylab = "PM2.5 emissions", main = "Total PM2.5 emissions for Baltimore city."
+  )
   dev.off()
 })

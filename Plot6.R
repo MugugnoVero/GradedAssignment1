@@ -32,24 +32,28 @@ if(!all(sapply(c('SourceClassificationCode', 'summarySCCPM25'), exists))){
   list2env(loadfun(url, cache_name = 'ExplDataAssgn2', force = F), envir = globalenv())
 }
 
-#### Plot 4. ####
-str(SourceClassificationCode)
-table(SourceClassificationCode$Option.Group)
-coalSources = subset(SourceClassificationCode, subset = SCC.Level.Four %like% 'coal', select = c('SCC', 'SCC.Level.Four'))
-emissionsWithOrigin = merge(x = summarySCCPM25, y = coalSources, by = "SCC", all = F)
+#### Plot 6. ####
+carsSources = subset(SourceClassificationCode, subset = EI.Sector %like% 'Vehicles')
+rawSubs = subset(summarySCCPM25, fips %in% c("24510", "06037"))
+mapping = data.frame(city = c("Baltimore", "Los Angeles"), fips = c("24510", "06037"))
+rawSubs = merge(rawSubs, carsSources, by = "SCC", all = F)
+table(rawSubs$fips)
+emissionsWithOrigin = merge(rawSubs, mapping, on = 'fips')
+head(emissionsWithOrigin)
+table(emissionsWithOrigin$fips, emissionsWithOrigin$city)
 
 with(data = emissionsWithOrigin, {
-  png(filename = "C:/Users/Andrea/Desktop/Plot4.png")
-  total_emissions = tapply(X = Emissions, INDEX = year, sum, na.rm = T)
-  years = names(total_emissions)
-  total_k_emissions = total_emissions/1000
-  yrange = range(0, total_k_emissions)
-  plot(x = years, y = total_k_emissions,
-    pch = 18, cex = 1.5, col = 'magenta',
-    ylim = yrange,
-    xlab = "Year", ylab = "PM2.5 emissions", main = "Total US PM2.5 coal-related emissions - KTons."
-  )
-  abline(h = max(total_k_emissions), col = 'red')
-  abline(h = min(total_k_emissions), col = 'green')
+  png(filename = "C:/Users/Andrea/Desktop/Plot6.png")
+  tmp = tapply(Emissions, list(city, year), sum)
+  tmpBalt = tmp["Baltimore", ]
+  tmpLA = tmp["Los Angeles", ]
+  xVals = names(tmpBalt)
+  ylims = range(tmpBalt, tmpLA)
+  par(mfrow = c(1, 2))
+  plot(x = xVals, y = tmpBalt, pch = 16, col = 'red',# ylim = ylims,
+    xlab = "Year", ylab = "PM2.5 emissions - tonnes/year", main = "PM2.5 emissions - Baltimore.")
+  #points(x = xVals, y = tmpLA, pch = 17, cex = 1, col = 'green')
+  plot(x = xVals, y = tmpLA, pch = 17, cex = 1, col = 'green',# ylim = ylims,
+    xlab = "Year", ylab = "PM2.5 emissions - tonnes/year", main = "PM2.5 emissions - LA.")
   dev.off()
 })
